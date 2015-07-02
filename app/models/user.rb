@@ -28,13 +28,13 @@ class User < ActiveRecord::Base
 
   validates :password, presence: true, length: { minimum: 6 }
 
-  def User.digest(string)
+  def self.digest(string)
     cost = ActiveModel::SecurePassword.min_cost ? BCrypt::Engine::MIN_COST :
                                                   BCrypt::Engine.cost
     BCrypt::Password.create(string, cost: cost)
   end
 
-  def User.new_token
+  def self.new_token
     SecureRandom.urlsafe_base64
   end
 
@@ -98,6 +98,18 @@ class User < ActiveRecord::Base
     following.include?(other_user)
   end
 
+  # Sets the password reset attributes.
+  def create_reset_digest
+    self.reset_token = User.new_token
+    update_attribute(:reset_digest,  User.digest(reset_token))
+    update_attribute(:reset_sent_at, Time.zone.now)
+  end
+
+  # Sends password reset email.
+  def send_password_reset_email
+    UserMailer.password_reset(self).deliver_now
+  end
+
 
   private
 
@@ -109,18 +121,6 @@ class User < ActiveRecord::Base
     def create_activation_digest
       self.activation_token  = User.new_token
       self.activation_digest = User.digest(activation_token)
-    end
-
-    # Sets the password reset attributes.
-    def create_reset_digest
-      self.reset_token = User.new_token
-      update_attribute(:reset_digest,  User.digest(reset_token))
-      update_attribute(:reset_sent_at, Time.zone.now)
-    end
-
-    # Sends password reset email.
-    def send_password_reset_email
-      UserMailer.password_reset(self).deliver_now
     end
 
 end
